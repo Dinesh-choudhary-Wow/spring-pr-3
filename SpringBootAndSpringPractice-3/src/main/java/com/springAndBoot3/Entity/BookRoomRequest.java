@@ -2,6 +2,8 @@ package com.springAndBoot3.Entity;
 
 import java.time.LocalDate;
 
+import com.springAndBoot3.enums.BookingStatus;
+
 public class BookRoomRequest {
 	private Long roomId;
     private LocalDate checkInDate;

@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import com.springAndBoot3.Entity.Room;
-import com.springAndBoot3.Entity.RoomType;
+import com.springAndBoot3.enums.RoomType;
 
 public interface RoomDao extends JpaRepository<Room, Long> {
 

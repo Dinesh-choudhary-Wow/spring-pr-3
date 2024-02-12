@@ -3,6 +3,8 @@ package com.springAndBoot3.Entity;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
+import com.springAndBoot3.enums.BookingStatus;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;

@@ -1,5 +1,7 @@
 package com.springAndBoot3.Entity;
 
+import com.springAndBoot3.enums.RoomType;
+
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
 import jakarta.persistence.Enumerated;

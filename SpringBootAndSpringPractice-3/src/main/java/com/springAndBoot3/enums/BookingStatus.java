@@ -1,4 +1,4 @@
-package com.springAndBoot3.Entity;
+package com.springAndBoot3.enums;
 
 public enum BookingStatus {
 	RESERVED,
