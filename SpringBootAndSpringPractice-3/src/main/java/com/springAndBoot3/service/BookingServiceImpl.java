@@ -81,95 +81,99 @@ public class BookingServiceImpl implements BookingService {
 	public ResponseEntity<Object> bookRoom(BookRoomRequest bookRoomRequest) throws RoomTypeUnavailableException {
 		Long roomId = bookRoomRequest.getRoomId();
 		try {
-			if(roomId == null) {
+			if (roomId == null) {
 				throw new IllegalArgumentException("RoomId Cannot be Empty. It is required for the booking of room.");
-			}
-		}catch (IllegalArgumentException ex) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-		}
-		
-		Room room = roomDao.findById(roomId).orElseThrow(() -> new RoomTypeUnavailableException("Room not found"));
-
-		// Validate Check-in and Check-out Dates
-		LocalDate checkInDate = bookRoomRequest.getCheckInDate();
-		LocalDate checkOutDate = bookRoomRequest.getCheckOutDate();
-		try {
-			if (checkInDate == null || checkOutDate == null) {
-				throw new IllegalArgumentException("Check-in date and Check-out-date cannot be empty.");
-			}
-			if (checkInDate.isAfter(checkOutDate)) {
-				throw new IllegalArgumentException("Check-in date must be before check-out date.");
 			}
 		} catch (IllegalArgumentException ex) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+		}
+		try {
+			Room room = roomDao.findById(roomId).orElseThrow(() -> new RoomTypeUnavailableException("Room not found"));
+
+			// Validate Check-in and Check-out Dates
+			LocalDate checkInDate = bookRoomRequest.getCheckInDate();
+			LocalDate checkOutDate = bookRoomRequest.getCheckOutDate();
+			try {
+				if (checkInDate == null || checkOutDate == null) {
+					throw new IllegalArgumentException("Check-in date and Check-out-date cannot be empty.");
+				}
+				if (checkInDate.isAfter(checkOutDate)) {
+					throw new IllegalArgumentException("Check-in date must be before check-out date.");
+				}
+			} catch (IllegalArgumentException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+			} catch (RoomTypeUnavailableException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+			}
+
+			// Validate Date Range
+			LocalDate currentDate = LocalDate.now();
+			try {
+				if (checkInDate.isBefore(currentDate) || checkOutDate.isBefore(currentDate)) {
+					throw new IllegalArgumentException("Check-in and check-out dates cannot be in the past.");
+				}
+			} catch (IllegalArgumentException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+			}
+
+			// Validate Customer Information
+			String firstName = bookRoomRequest.getFirstName();
+			String lastName = bookRoomRequest.getLastName();
+			String email = bookRoomRequest.getEmail();
+			String phone = bookRoomRequest.getPhone();
+			BookingStatus status = bookRoomRequest.getStatus();
+			try {
+				if (firstName == null || lastName == null || email == null || phone == null || status == null) {
+					throw new IllegalArgumentException("Customer information cannot be null.");
+				}
+			} catch (IllegalArgumentException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+			}
+
+			// Validate room availability for the given dates
+			List<Booking> conflictingBookings = bookingDao.findConflictingBookings(roomId, checkInDate, checkOutDate);
+			try {
+				if (!conflictingBookings.isEmpty()) {
+					throw new RoomTypeUnavailableException("Room is not available for the specified dates.");
+				}
+			} catch (IllegalArgumentException ex) {
+				return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
+			}
+
+			// Calculate duration of stay
+			Duration duration = Duration.between(bookRoomRequest.getCheckInDate().atStartOfDay(),
+					bookRoomRequest.getCheckOutDate().atStartOfDay());
+
+			// Convert pricePerDay to BigDecimal
+			BigDecimal pricePerDayBigDecimal = BigDecimal.valueOf(room.getPricePerDay());
+
+			// Calculate total price
+			BigDecimal totalPrice = pricePerDayBigDecimal.multiply(BigDecimal.valueOf(duration.toDays()));
+
+			// Create customer entity
+			Customer customer = new Customer();
+			customer.setFirstName(bookRoomRequest.getFirstName());
+			customer.setLastName(bookRoomRequest.getLastName());
+			customer.setEmail(bookRoomRequest.getEmail());
+			customer.setPhone(bookRoomRequest.getPhone());
+			customer.setLocation(bookRoomRequest.getLocation());
+			// Save customer to the database
+			customer = customerDao.save(customer);
+
+			// Create booking entity
+			Booking booking = new Booking();
+			booking.setRoom(room);
+			booking.setCheckInDate(bookRoomRequest.getCheckInDate());
+			booking.setCheckOutDate(bookRoomRequest.getCheckOutDate());
+			booking.setCustomer(customer); // Associate customer with booking
+			booking.setStatus(bookRoomRequest.getStatus());
+			booking.setTotalPrice(totalPrice);
+			// Save booking to the database
+
+			bookingDao.save(booking);
 		} catch (RoomTypeUnavailableException ex) {
 			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
 		}
-
-		// Validate Date Range
-		LocalDate currentDate = LocalDate.now();
-		try {
-			if (checkInDate.isBefore(currentDate) || checkOutDate.isBefore(currentDate)) {
-				throw new IllegalArgumentException("Check-in and check-out dates cannot be in the past.");
-			}
-		} catch (IllegalArgumentException ex) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-		}
-
-		// Validate Customer Information
-		String firstName = bookRoomRequest.getFirstName();
-		String lastName = bookRoomRequest.getLastName();
-		String email = bookRoomRequest.getEmail();
-		String phone = bookRoomRequest.getPhone();
-		BookingStatus status = bookRoomRequest.getStatus();
-		try {
-			if (firstName == null || lastName == null || email == null || phone == null || status == null) {
-				throw new IllegalArgumentException("Customer information cannot be null.");
-			}
-		} catch (IllegalArgumentException ex) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-		}
-
-		// Validate room availability for the given dates
-		List<Booking> conflictingBookings = bookingDao.findConflictingBookings(roomId, checkInDate, checkOutDate);
-		try {
-			if (!conflictingBookings.isEmpty()) {
-				throw new RoomTypeUnavailableException("Room is not available for the specified dates.");
-			}
-		} catch (IllegalArgumentException ex) {
-			return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ex.getMessage());
-		}
-
-		// Calculate duration of stay
-		Duration duration = Duration.between(bookRoomRequest.getCheckInDate().atStartOfDay(),
-				bookRoomRequest.getCheckOutDate().atStartOfDay());
-
-		// Convert pricePerDay to BigDecimal
-		BigDecimal pricePerDayBigDecimal = BigDecimal.valueOf(room.getPricePerDay());
-
-		// Calculate total price
-		BigDecimal totalPrice = pricePerDayBigDecimal.multiply(BigDecimal.valueOf(duration.toDays()));
-
-		// Create customer entity
-		Customer customer = new Customer();
-		customer.setFirstName(bookRoomRequest.getFirstName());
-		customer.setLastName(bookRoomRequest.getLastName());
-		customer.setEmail(bookRoomRequest.getEmail());
-		customer.setPhone(bookRoomRequest.getPhone());
-		customer.setLocation(bookRoomRequest.getLocation());
-		// Save customer to the database
-		customer = customerDao.save(customer);
-
-		// Create booking entity
-		Booking booking = new Booking();
-		booking.setRoom(room);
-		booking.setCheckInDate(bookRoomRequest.getCheckInDate());
-		booking.setCheckOutDate(bookRoomRequest.getCheckOutDate());
-		booking.setCustomer(customer); // Associate customer with booking
-		booking.setStatus(bookRoomRequest.getStatus());
-		booking.setTotalPrice(totalPrice);
-		// Save booking to the database
-		bookingDao.save(booking);
 		return ResponseEntity.status(HttpStatus.CREATED).body("Booking Saved to the Database");
 	}
 }

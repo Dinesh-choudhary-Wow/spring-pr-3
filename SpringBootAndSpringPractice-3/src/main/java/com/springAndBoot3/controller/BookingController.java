@@ -115,7 +115,7 @@ public class BookingController {
 		try {
 			return bookingService.bookRoom(bookRoomRequest);
 		} catch (Exception e) {
-			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server Error");
+			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Internal Server Error" + e);
 		}
 	}
 }
